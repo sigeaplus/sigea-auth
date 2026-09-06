@@ -3,19 +3,23 @@
    ========================================================= */
 
 :root {
-  /* Cores */
-  --color-bg: #f4f6f8;
+  /* Cores — tema baseado na marca SIGEA+ (azul institucional profundo,
+     com verde e laranja como acentos discretos, ecoando o arco da logo) */
+  --color-bg: #f3f6fb;
   --color-surface: #ffffff;
-  --color-border: #e2e6ea;
-  --color-border-strong: #cbd2d9;
+  --color-border: #e1e7ef;
+  --color-border-strong: #c7d1de;
 
-  --color-primary: #1a3a6e;
-  --color-primary-hover: #14305c;
+  --color-primary: #123a8c;
+  --color-primary-hover: #0d2d6e;
   --color-primary-contrast: #ffffff;
 
-  --color-text: #1b232e;
-  --color-text-muted: #5b6570;
-  --color-text-subtle: #8894a0;
+  --color-accent-green: #2fae4e;
+  --color-accent-orange: #f5921f;
+
+  --color-text: #14213a;
+  --color-text-muted: #5b6577;
+  --color-text-subtle: #8893a4;
 
   --color-error: #b3261e;
   --color-error-bg: #fdecea;
@@ -72,6 +76,7 @@ body {
 }
 
 .auth-card {
+  position: relative;
   width: 100%;
   max-width: 400px;
   background: var(--color-surface);
@@ -79,7 +84,24 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding: 40px 32px 32px;
+  overflow: hidden;
   animation: card-in 420ms ease;
+}
+
+/* Faixa superior sutil ecoando o arco colorido da marca SIGEA+ */
+.auth-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-accent-orange) 0%,
+    var(--color-primary) 45%,
+    var(--color-accent-green) 100%
+  );
 }
 
 @keyframes card-in {
@@ -113,14 +135,11 @@ body {
 }
 
 .brand-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: var(--color-primary-contrast);
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: contain;
+  display: block;
 }
 
 .brand-name {
@@ -197,6 +216,32 @@ body {
 
 .field input[aria-invalid="true"]:focus {
   box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.12);
+}
+
+/* Campo CPF/e-mail com ícone de envelope */
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-icon .input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--color-text-subtle);
+  pointer-events: none;
+  transition: color var(--transition-fast);
+}
+
+.input-with-icon input {
+  width: 100%;
+  padding-left: 40px;
+}
+
+.input-with-icon input:focus ~ .input-icon,
+.input-with-icon:focus-within .input-icon {
+  color: var(--color-primary);
 }
 
 .field-error {
@@ -354,6 +399,12 @@ body {
   backdrop-filter: blur(2px);
   z-index: 50;
   animation: overlay-in var(--transition-base);
+}
+
+/* O atributo [hidden] precisa vencer o display:flex acima — sem isso,
+   o navegador pode manter o modal visível mesmo estando "hidden". */
+.modal-overlay[hidden] {
+  display: none !important;
 }
 
 @keyframes overlay-in {
