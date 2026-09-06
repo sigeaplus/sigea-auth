@@ -196,8 +196,8 @@ body {
   color: var(--color-text);
   background: var(--color-surface);
   border: 1.5px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  padding: 11px 12px;
+  border-radius: 6px;
+  padding: 12px 14px;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -250,16 +250,10 @@ body {
   margin: 0;
 }
 
-/* Campo de senha com botão mostrar/ocultar */
-
-.password-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
+/* Campo de senha com ícone de chave + botão mostrar/ocultar */
 
 .password-wrap input {
-  width: 100%;
+  padding-left: 40px;
   padding-right: 44px;
 }
 
@@ -280,8 +274,18 @@ body {
 }
 
 .toggle-password:hover {
-  color: var(--color-text);
+  color: var(--color-primary);
   background: var(--color-bg);
+}
+
+.toggle-password svg {
+  display: block;
+}
+
+/* [hidden] precisa vencer o display:block acima, senão os dois ícones
+   (olho aberto/fechado) aparecem lado a lado ao mesmo tempo. */
+.toggle-password svg[hidden] {
+  display: none !important;
 }
 
 /* =========================
