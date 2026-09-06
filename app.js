@@ -3,14 +3,50 @@
  * -------------------------------------------------------------------------
  * Front-end da tela de login do sistema central de autenticação do SIGEA.
  *
- * IMPORTANTE: este arquivo NÃO implementa autenticação real ainda.
- * Ele está estruturado para receber a integração futura com o
- * Firebase Authentication (ver seção "INTEGRAÇÃO FUTURA" no final).
+ * Autenticação real via Firebase Authentication (e-mail/senha), importado
+ * como ES Module diretamente do CDN oficial do Firebase (gstatic) — sem
+ * bundler, sem build, sem npm.
  *
- * Fluxo alvo:
- *   Firebase Authentication → login() → usuário autenticado → UID → módulo
+ * Fluxo:
+ *   identificador (CPF ou e-mail) + senha
+ *     → se for e-mail: usado diretamente
+ *     → se for CPF: resolvido para o e-mail associado (ver resolveIdentifierToEmail)
+ *   → signInWithEmailAndPassword(auth, email, senha)
+ *   → usuário autenticado → user.uid (identidade universal no ecossistema SIGEA)
+ *
+ * O SIGEA Auth responde apenas "quem é o usuário" (UID). Permissões de
+ * SIDED+, SIPRO+, SICEP+ e demais módulos NÃO são tratadas aqui.
  * -------------------------------------------------------------------------
  */
+
+// ============================================================
+// Firebase — inicialização (Web SDK modular via CDN)
+// ============================================================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+// Configuração Web do Firebase. Estes valores identificam o projeto no
+// front-end (não são segredos administrativos) e podem permanecer no
+// código do lado do cliente.
+const firebaseConfig = {
+  apiKey: "AIzaSyCGng9ZcN4WMSVJEmxz-d0o9171svIZc0s",
+  authDomain: "sigea-auth-0.firebaseapp.com",
+  projectId: "sigea-auth-0",
+  storageBucket: "sigea-auth-0.firebasestorage.app",
+  messagingSenderId: "400906218593",
+  appId: "1:400906218593:web:22f9175235347e9e430e20",
+  measurementId: "G-ZVSKPD01N1",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
 
 // ============================================================
 // Elementos da tela de login
@@ -93,14 +129,51 @@ function setButtonLoading(buttonEl, isLoading, loadingLabel = "Entrando...") {
 submitButton.dataset.defaultLabel = "ENTRAR";
 forgotSubmitButton.dataset.defaultLabel = "Enviar instruções";
 
+/**
+ * Converte um erro (do Firebase Auth ou de validação interna) em uma
+ * mensagem amigável para exibir ao usuário, sem expor códigos técnicos.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function getFriendlyAuthErrorMessage(error) {
+  const code = error && typeof error === "object" ? error.code : null;
+
+  switch (code) {
+    case "auth/invalid-email":
+      return "E-mail inválido.";
+    case "auth/user-disabled":
+      return "Esta conta está desativada. Procure a administração do SIGEA.";
+    case "auth/user-not-found":
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+      return "CPF/e-mail ou senha incorretos.";
+    case "auth/too-many-requests":
+      return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+    case "auth/network-request-failed":
+      return "Falha de conexão. Verifique sua internet e tente novamente.";
+    default:
+      return (error && error.message) || "Não foi possível concluir a operação. Tente novamente.";
+  }
+}
+
 // ============================================================
 // Validação simples de CPF/e-mail
 // ============================================================
 
 /**
+ * Verifica se o valor tem formato de e-mail.
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isEmail(value) {
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailPattern.test(value);
+}
+
+/**
  * Verifica se o valor parece um e-mail ou um CPF (11 dígitos, com ou sem
  * pontuação). Validação apenas de formato — a validação real (dígitos
- * verificadores, existência da conta etc.) ficará a cargo do backend.
+ * verificadores, existência da conta etc.) ficará a cargo do backend/Firebase.
  * @param {string} value
  * @returns {boolean}
  */
@@ -108,8 +181,7 @@ function isValidIdentifier(value) {
   const trimmed = value.trim();
   if (!trimmed) return false;
 
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (emailPattern.test(trimmed)) return true;
+  if (isEmail(trimmed)) return true;
 
   const digitsOnly = trimmed.replace(/\D/g, "");
   return digitsOnly.length === 11;
@@ -166,12 +238,12 @@ loginForm.addEventListener("submit", async (event) => {
 
   try {
     const user = await login(identifier, password);
-    // Estrutura preparada para redirecionamento futuro ao módulo solicitado
-    // assim que a autenticação real (Firebase) estiver integrada.
-    console.log("Login realizado (placeholder):", user);
+    // Estrutura preparada para redirecionamento futuro ao módulo solicitado,
+    // usando user.uid como identidade universal do usuário no ecossistema.
+    console.log("Login realizado. UID:", user.uid);
     showStatus(formStatus, "Login realizado com sucesso.", "success");
   } catch (error) {
-    showStatus(formStatus, error.message || "Não foi possível entrar. Tente novamente.");
+    showStatus(formStatus, getFriendlyAuthErrorMessage(error));
   } finally {
     setButtonLoading(submitButton, false);
   }
@@ -265,97 +337,131 @@ forgotForm.addEventListener("submit", async (event) => {
       "success"
     );
   } catch (error) {
-    showStatus(forgotStatus, error.message || "Não foi possível enviar as instruções.");
+    showStatus(forgotStatus, getFriendlyAuthErrorMessage(error));
   } finally {
     setButtonLoading(forgotSubmitButton, false);
   }
 });
 
 // ============================================================
-// INTEGRAÇÃO FUTURA — Firebase Authentication
+// Firebase Authentication — integração real
 // ------------------------------------------------------------
-// As funções abaixo são placeholders. Elas definem a interface que
-// será usada pelo restante da aplicação (e pelos módulos SIDED+,
-// SIPRO+, SICEP+) para autenticação, mas ainda não se conectam a
-// nenhum backend real.
+// O Firebase Auth usa e-mail + senha como credencial. O usuário do
+// SIGEA pode informar CPF OU e-mail; quando for CPF, o identificador
+// precisa ser resolvido para o e-mail associado antes de chamar o
+// Firebase. Essa resolução depende de uma estrutura de dados (ex.:
+// Firestore) que ainda não existe neste projeto — por isso a função
+// resolveIdentifierToEmail() abaixo está deixada claramente preparada
+// para implementação posterior, sem dados fictícios.
 //
-// Quando o Firebase for integrado, este arquivo (ou um módulo
-// dedicado, ex.: js/firebase.js) deverá:
-//
-//   import { initializeApp } from "firebase/app";
-//   import { getAuth, signInWithEmailAndPassword, ... } from "firebase/auth";
-//
-//   const firebaseConfig = { ... };
-//   const app = initializeApp(firebaseConfig);
-//   const auth = getAuth(app);
-//
-// O login aceitará CPF OU e-mail, mas o Firebase Auth continuará
-// usando e-mail como credencial. Quando o identificador informado
-// for um CPF, será necessário resolvê-lo para o e-mail associado
-// (ex.: via endpoint /resolve-identifier) antes de chamar o Firebase.
-// O UID retornado pelo Firebase será a identidade universal do
-// usuário dentro do ecossistema SIGEA.
+// O UID retornado pelo Firebase (user.uid) é a identidade universal
+// do usuário dentro do ecossistema SIGEA. Este arquivo não trata
+// permissões dos módulos (SIDED+, SIPRO+, SICEP+) — apenas "quem é
+// o usuário".
 // ============================================================
 
 /**
- * Autentica o usuário com CPF/e-mail + senha.
+ * Resolve um identificador informado como e-mail.
  *
- * Placeholder: hoje apenas simula uma resposta assíncrona e não
- * realiza nenhuma autenticação real. Deve ser substituída pela
- * chamada ao Firebase Authentication (signInWithEmailAndPassword,
- * possivelmente precedida da resolução de CPF → e-mail).
+ * Se `identifier` já for um e-mail, é retornado como está. Se for um
+ * CPF, esta função deveria consultar a estrutura que associa CPF → e-mail
+ * (por exemplo, uma coleção no Firestore) e retornar o e-mail vinculado
+ * a essa conta.
+ *
+ * PENDENTE: a estrutura de CPF ainda não existe no projeto (Firestore
+ * não foi modelado para isso nesta etapa). Por isso, para CPF, esta
+ * função apenas lança um erro claro em vez de simular/inventar dados.
  *
  * @param {string} identifier - CPF ou e-mail informado pelo usuário.
- * @param {string} password - Senha informada pelo usuário.
- * @returns {Promise<{uid: string|null, identifier: string}>}
+ * @returns {Promise<string>} O e-mail a ser usado no Firebase Authentication.
  */
-async function login(identifier, password) {
-  // TODO (Firebase): resolver CPF → e-mail quando necessário, depois
-  // chamar signInWithEmailAndPassword(auth, email, password).
+async function resolveIdentifierToEmail(identifier) {
+  const trimmed = identifier.trim();
+
+  if (isEmail(trimmed)) {
+    return trimmed;
+  }
+
+  // TODO (futuro): buscar no Firestore (ou endpoint equivalente) o
+  // e-mail associado a este CPF, ex.:
+  //   const snapshot = await getDoc(doc(db, "usuarios_cpf", digitsOnly(trimmed)));
+  //   if (!snapshot.exists()) throw new Error("CPF não encontrado.");
+  //   return snapshot.data().email;
   throw new Error(
-    "Autenticação ainda não configurada. Integração com Firebase pendente."
+    "Login por CPF ainda não está disponível. Utilize seu e-mail por enquanto."
   );
 }
 
 /**
+ * Autentica o usuário com CPF/e-mail + senha via Firebase Authentication.
+ *
+ * @param {string} identifier - CPF ou e-mail informado pelo usuário.
+ * @param {string} password - Senha informada pelo usuário.
+ * @returns {Promise<{uid: string, email: string|null}>}
+ */
+async function login(identifier, password) {
+  const email = await resolveIdentifierToEmail(identifier);
+
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  const user = credential.user;
+
+  // user.uid é a identidade universal do usuário dentro do ecossistema
+  // SIGEA. Cada módulo (SIDED+, SIPRO+, SICEP+) consultará suas próprias
+  // permissões para esse UID — nada disso é resolvido aqui.
+  return { uid: user.uid, email: user.email };
+}
+
+/**
  * Encerra a sessão do usuário atual.
- *
- * Placeholder: deve futuramente chamar signOut(auth) do Firebase
- * e limpar qualquer estado local relacionado ao usuário autenticado.
- *
  * @returns {Promise<void>}
  */
 async function logout() {
-  // TODO (Firebase): await signOut(auth);
-  throw new Error("logout() ainda não implementado — aguardando integração com Firebase.");
+  await signOut(auth);
 }
 
 /**
  * Retorna o usuário atualmente autenticado, se houver.
  *
- * Placeholder: deve futuramente ler o estado de autenticação do
- * Firebase (ex.: via onAuthStateChanged ou auth.currentUser) e
- * retornar os dados relevantes (UID, e-mail, etc.).
+ * Baseado em `auth.currentUser`, que reflete o estado já resolvido pelo
+ * Firebase no momento da chamada (ver onAuthStateChanged abaixo para
+ * reagir a mudanças de estado de forma assíncrona/reativa).
  *
- * @returns {{uid: string, email: string}|null}
+ * @returns {{uid: string, email: string|null}|null}
  */
 function getCurrentUser() {
-  // TODO (Firebase): return auth.currentUser (mapeado para o formato usado no app).
-  return null;
+  const user = auth.currentUser;
+  if (!user) return null;
+  return { uid: user.uid, email: user.email };
 }
 
 /**
  * Dispara o fluxo de recuperação de senha para o CPF/e-mail informado.
  *
- * Placeholder: deve futuramente resolver CPF → e-mail (se necessário)
- * e chamar sendPasswordResetEmail(auth, email) do Firebase.
+ * Se for e-mail, o link de redefinição é enviado diretamente pelo
+ * Firebase. Se for CPF, depende da mesma resolução CPF → e-mail
+ * descrita em resolveIdentifierToEmail() (ainda pendente).
  *
  * @param {string} identifier - CPF ou e-mail informado pelo usuário.
  * @returns {Promise<void>}
  */
 async function handleForgotPassword(identifier) {
-  // TODO (Firebase): await sendPasswordResetEmail(auth, email);
-  throw new Error(
-    "Recuperação de senha ainda não configurada. Integração com Firebase pendente."
-  );
+  const email = await resolveIdentifierToEmail(identifier);
+  await sendPasswordResetEmail(auth, email);
 }
+
+// ============================================================
+// Estado de sessão — onAuthStateChanged
+// ------------------------------------------------------------
+// Observa mudanças no estado de autenticação (login, logout, sessão
+// restaurada ao recarregar a página). Por enquanto apenas registra o
+// estado; o redirecionamento para o módulo solicitado será plugado
+// aqui futuramente.
+// ============================================================
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    console.log("Sessão SIGEA ativa. UID:", user.uid);
+  } else {
+    console.log("Nenhuma sessão SIGEA ativa.");
+  }
+});
