@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIGEA Auth — Entrar</title>
+  <meta name="description" content="Autenticação central do ecossistema SIGEA." />
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+
+  <main class="auth-shell">
+    <section class="auth-card" aria-labelledby="auth-title">
+
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M12 3l8 4-8 4-8-4 8-4z"/>
+            <path d="M4 11v5c0 1.5 3.5 3 8 3s8-1.5 8-3v-5"/>
+          </svg>
+        </div>
+        <span class="brand-name">SIGEA</span>
+      </div>
+
+      <h1 id="auth-title" class="auth-title">Entrar no SIGEA</h1>
+      <p class="auth-subtitle">Acesse com a sua conta institucional única.</p>
+
+      <form id="login-form" class="auth-form" novalidate>
+
+        <div class="field">
+          <label for="login-identifier">CPF ou e-mail</label>
+          <input
+            id="login-identifier"
+            name="identifier"
+            type="text"
+            inputmode="email"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+            aria-describedby="identifier-error"
+          />
+          <p id="identifier-error" class="field-error" role="alert" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="login-password">Senha</label>
+          <div class="password-wrap">
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              aria-describedby="password-error"
+            />
+            <button
+              type="button"
+              id="toggle-password"
+              class="toggle-password"
+              aria-pressed="false"
+              aria-controls="login-password"
+              aria-label="Mostrar senha"
+            >
+              <svg class="icon-eye" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="icon-eye-off" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" hidden>
+                <path d="M3 3l18 18"/>
+                <path d="M10.6 5.2A10.9 10.9 0 0 1 12 5c7 0 10.5 7 10.5 7a13.4 13.4 0 0 1-3.1 3.9M6.6 6.6C3.4 8.6 1.5 12 1.5 12s3.5 7 10.5 7a10.6 10.6 0 0 0 4.9-1.2"/>
+                <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+              </svg>
+            </button>
+          </div>
+          <p id="password-error" class="field-error" role="alert" hidden></p>
+        </div>
+
+        <div class="form-status" id="form-status" role="alert" aria-live="assertive" hidden></div>
+
+        <button type="submit" id="submit-button" class="btn-primary">
+          <span class="btn-label">ENTRAR</span>
+          <span class="btn-spinner" aria-hidden="true" hidden></span>
+        </button>
+
+        <div class="form-links">
+          <button type="button" id="forgot-password-link" class="link-button">
+            Esqueci minha senha
+          </button>
+        </div>
+
+      </form>
+
+    </section>
+
+    <p class="auth-footer">SIGEA · Sistema Integrado de Gestão Educacional e Administrativa</p>
+  </main>
+
+  <!-- Modal: recuperação de senha -->
+  <div id="forgot-modal" class="modal-overlay" hidden>
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="forgot-title"
+      aria-describedby="forgot-desc"
+    >
+      <button type="button" id="forgot-close" class="modal-close" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M4 4l16 16M20 4L4 20"/>
+        </svg>
+      </button>
+
+      <h2 id="forgot-title" class="modal-title">Recuperar senha</h2>
+      <p id="forgot-desc" class="modal-subtitle">
+        Informe seu CPF ou e-mail. Enviaremos as instruções para redefinir sua senha.
+      </p>
+
+      <form id="forgot-form" class="auth-form" novalidate>
+        <div class="field">
+          <label for="forgot-identifier">CPF ou e-mail</label>
+          <input
+            id="forgot-identifier"
+            name="identifier"
+            type="text"
+            inputmode="email"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+            aria-describedby="forgot-identifier-error"
+          />
+          <p id="forgot-identifier-error" class="field-error" role="alert" hidden></p>
+        </div>
+
+        <div class="form-status" id="forgot-status" role="alert" aria-live="assertive" hidden></div>
+
+        <button type="submit" id="forgot-submit" class="btn-primary">
+          <span class="btn-label">Enviar instruções</span>
+          <span class="btn-spinner" aria-hidden="true" hidden></span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
