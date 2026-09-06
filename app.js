@@ -73,6 +73,11 @@ const forgotIdentifierInput = document.getElementById("forgot-identifier");
 const forgotIdentifierError = document.getElementById("forgot-identifier-error");
 const forgotSubmitButton = document.getElementById("forgot-submit");
 const forgotStatus = document.getElementById("forgot-status");
+const forgotBackToLoginLink = document.getElementById("forgot-back-to-login");
+
+const forgotViewForm = document.getElementById("forgot-view-form");
+const forgotViewSuccess = document.getElementById("forgot-view-success");
+const forgotSuccessBackButton = document.getElementById("forgot-success-back");
 
 let lastFocusedBeforeModal = null;
 
@@ -253,12 +258,23 @@ loginForm.addEventListener("submit", async (event) => {
 // Modal "Esqueci minha senha"
 // ============================================================
 
+/**
+ * Alterna entre a vista de formulário e a vista de sucesso dentro do
+ * modal de recuperação de senha.
+ * @param {"form"|"success"} view
+ */
+function showForgotView(view) {
+  forgotViewForm.hidden = view !== "form";
+  forgotViewSuccess.hidden = view !== "success";
+}
+
 function openForgotModal() {
   lastFocusedBeforeModal = document.activeElement;
 
   clearStatus(forgotStatus);
   setFieldError(forgotIdentifierInput, forgotIdentifierError, "");
   forgotForm.reset();
+  showForgotView("form");
 
   forgotModal.hidden = false;
   document.body.style.overflow = "hidden";
@@ -289,8 +305,11 @@ function handleModalKeydown(event) {
     const focusableEls = forgotModal.querySelectorAll(
       'button, input, [tabindex]:not([tabindex="-1"])'
     );
-    const first = focusableEls[0];
-    const last = focusableEls[focusableEls.length - 1];
+    const visibleFocusableEls = Array.from(focusableEls).filter(
+      (el) => el.offsetParent !== null
+    );
+    const first = visibleFocusableEls[0];
+    const last = visibleFocusableEls[visibleFocusableEls.length - 1];
 
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
@@ -304,6 +323,8 @@ function handleModalKeydown(event) {
 
 forgotPasswordLink.addEventListener("click", openForgotModal);
 forgotCloseButton.addEventListener("click", closeForgotModal);
+forgotBackToLoginLink.addEventListener("click", closeForgotModal);
+forgotSuccessBackButton.addEventListener("click", closeForgotModal);
 
 forgotModal.addEventListener("click", (event) => {
   if (event.target === forgotModal) {
@@ -315,14 +336,10 @@ forgotForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearStatus(forgotStatus);
 
-  const identifier = forgotIdentifierInput.value;
+  const email = forgotIdentifierInput.value.trim();
 
-  if (!isValidIdentifier(identifier)) {
-    setFieldError(
-      forgotIdentifierInput,
-      forgotIdentifierError,
-      "Informe um CPF ou e-mail válido."
-    );
+  if (!isEmail(email)) {
+    setFieldError(forgotIdentifierInput, forgotIdentifierError, "E-mail inválido.");
     return;
   }
   setFieldError(forgotIdentifierInput, forgotIdentifierError, "");
@@ -330,12 +347,9 @@ forgotForm.addEventListener("submit", async (event) => {
   setButtonLoading(forgotSubmitButton, true, "Enviando...");
 
   try {
-    await handleForgotPassword(identifier);
-    showStatus(
-      forgotStatus,
-      "Se os dados estiverem corretos, você receberá as instruções em instantes.",
-      "success"
-    );
+    await handleForgotPassword(email);
+    showForgotView("success");
+    forgotSuccessBackButton.focus();
   } catch (error) {
     showStatus(forgotStatus, getFriendlyAuthErrorMessage(error));
   } finally {

@@ -474,6 +474,70 @@ body {
   line-height: 1.5;
 }
 
+/* Vistas internas do modal (formulário / sucesso) */
+
+.modal-view {
+  animation: view-in 260ms ease;
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#forgot-view-success {
+  text-align: center;
+}
+
+#forgot-view-success .modal-title {
+  padding-right: 0;
+}
+
+#forgot-view-success .modal-subtitle {
+  margin-bottom: 26px;
+}
+
+#forgot-view-success .btn-primary {
+  width: 100%;
+}
+
+.success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 4px auto 18px;
+  border-radius: 50%;
+  background: rgba(47, 174, 78, 0.12);
+  color: var(--color-accent-green);
+  animation: success-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-view,
+  .success-icon {
+    animation: none;
+  }
+}
+
 /* =========================
    Responsivo
    ========================= */

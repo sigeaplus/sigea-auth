@@ -117,35 +117,69 @@
         </svg>
       </button>
 
-      <h2 id="forgot-title" class="modal-title">Recuperar senha</h2>
-      <p id="forgot-desc" class="modal-subtitle">
-        Informe seu CPF ou e-mail. Enviaremos as instruções para redefinir sua senha.
-      </p>
+      <!-- Vista 1: formulário de recuperação -->
+      <div id="forgot-view-form" class="modal-view">
+        <h2 id="forgot-title" class="modal-title">Recuperar senha</h2>
+        <p id="forgot-desc" class="modal-subtitle">
+          Informe seu e-mail para receber as instruções de recuperação da sua senha.
+        </p>
 
-      <form id="forgot-form" class="auth-form" novalidate>
-        <div class="field">
-          <label for="forgot-identifier">CPF ou e-mail</label>
-          <input
-            id="forgot-identifier"
-            name="identifier"
-            type="text"
-            inputmode="email"
-            autocomplete="username"
-            autocapitalize="none"
-            spellcheck="false"
-            required
-            aria-describedby="forgot-identifier-error"
-          />
-          <p id="forgot-identifier-error" class="field-error" role="alert" hidden></p>
+        <form id="forgot-form" class="auth-form" novalidate>
+          <div class="field">
+            <label for="forgot-identifier">E-mail</label>
+            <div class="input-with-icon">
+              <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="2.5" y="5" width="19" height="14" rx="2.2"/>
+                <path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>
+              </svg>
+              <input
+                id="forgot-identifier"
+                name="email"
+                type="email"
+                inputmode="email"
+                autocomplete="email"
+                autocapitalize="none"
+                spellcheck="false"
+                required
+                aria-describedby="forgot-identifier-error"
+              />
+            </div>
+            <p id="forgot-identifier-error" class="field-error" role="alert" hidden></p>
+          </div>
+
+          <div class="form-status" id="forgot-status" role="alert" aria-live="assertive" hidden></div>
+
+          <button type="submit" id="forgot-submit" class="btn-primary">
+            <span class="btn-label">Enviar instruções</span>
+            <span class="btn-spinner" aria-hidden="true" hidden></span>
+          </button>
+
+          <div class="form-links">
+            <button type="button" id="forgot-back-to-login" class="link-button">
+              Voltar para o login
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Vista 2: confirmação de envio -->
+      <div id="forgot-view-success" class="modal-view" hidden>
+        <div class="success-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 12.5l5.5 5.5L20 7"/>
+          </svg>
         </div>
 
-        <div class="form-status" id="forgot-status" role="alert" aria-live="assertive" hidden></div>
+        <h2 class="modal-title">E-mail enviado!</h2>
+        <p class="modal-subtitle">
+          Enviamos as instruções para recuperação da sua senha. Verifique sua
+          caixa de entrada e também a pasta de spam.
+        </p>
 
-        <button type="submit" id="forgot-submit" class="btn-primary">
-          <span class="btn-label">Enviar instruções</span>
-          <span class="btn-spinner" aria-hidden="true" hidden></span>
+        <button type="button" id="forgot-success-back" class="btn-primary">
+          <span class="btn-label">Voltar para o login</span>
         </button>
-      </form>
+      </div>
     </div>
   </div>
 
