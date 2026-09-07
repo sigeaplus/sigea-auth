@@ -440,8 +440,18 @@ async function resolveIdentifierToEmail(identifier) {
     const result = await resolveCpfToEmailFn({ cpf: cpfDigits });
     return result.data.email;
   } catch (error) {
-    // Erros da Cloud Function (ex.: "not-found") já vêm com mensagem
-    // amigável definida no backend; repassamos como está.
+    // "internal"/"unauthenticated"/"failed-precondition" nesta chamada
+    // costumam indicar que o token do App Check não foi aceito (ex.:
+    // domínio não autorizado na site key do reCAPTCHA Enterprise), e
+    // não um CPF incorreto — mantemos essa distinção só no console,
+    // para não confundir o usuário final com detalhes técnicos.
+    const code = error && error.code;
+    if (code === "functions/internal" || code === "functions/unauthenticated") {
+      console.error("Falha ao chamar resolveCpfToEmail (possível bloqueio do App Check):", error);
+    }
+
+    // Erros esperados da Cloud Function (ex.: "not-found") já vêm com
+    // mensagem amigável definida no backend; repassamos como está.
     throw new Error(
       (error && error.message) || "CPF ou senha incorretos."
     );
