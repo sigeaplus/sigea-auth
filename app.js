@@ -25,12 +25,20 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app-check.js";
+import {
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+import {
+  getFunctions,
+  httpsCallable,
+} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-functions.js";
 
 // Configuração Web do Firebase. Estes valores identificam o projeto no
 // front-end (não são segredos administrativos) e podem permanecer no
@@ -46,7 +54,29 @@ const firebaseConfig = {
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
+
+// Firebase App Check (reCAPTCHA Enterprise). Precisa ser inicializado
+// antes de qualquer chamada a outros serviços do Firebase (Auth,
+// Functions etc.), para que o token do App Check já seja anexado
+// automaticamente a essas chamadas — daí ficar logo após initializeApp().
+// A site key abaixo é a chave PÚBLICA do reCAPTCHA Enterprise, já
+// registrada no App Check deste projeto — não é um segredo de servidor.
+const RECAPTCHA_ENTERPRISE_SITE_KEY = "6Ld4j64tAAAAALoZuRDJl5zbVnUTz0TlktA2Gw0q";
+
+const appCheck = initializeAppCheck(firebaseApp, {
+  provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
+  isTokenAutoRefreshEnabled: true,
+});
+
 const auth = getAuth(firebaseApp);
+
+// Cloud Function callable que resolve CPF → e-mail. A resolução não é
+// feita por consulta direta ao Firestore a partir do navegador porque,
+// no momento do login, o usuário ainda não está autenticado — uma
+// consulta direta exigiria liberar leitura pública da coleção `users`.
+// A function roda com Admin SDK no servidor e devolve só o e-mail.
+const functions = getFunctions(firebaseApp, "southamerica-east1");
+const resolveCpfToEmailFn = httpsCallable(functions, "resolveCpfToEmail");
 
 // ============================================================
 // Elementos da tela de login
@@ -156,6 +186,11 @@ function getFriendlyAuthErrorMessage(error) {
       return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
     case "auth/network-request-failed":
       return "Falha de conexão. Verifique sua internet e tente novamente.";
+    // Erros da Cloud Function resolveCpfToEmail (login por CPF).
+    case "functions/not-found":
+      return "CPF ou senha incorretos.";
+    case "functions/invalid-argument":
+      return "Informe um CPF válido.";
     default:
       return (error && error.message) || "Não foi possível concluir a operação. Tente novamente.";
   }
@@ -176,6 +211,15 @@ function isEmail(value) {
 }
 
 /**
+ * Remove tudo que não for dígito de uma string (usado para normalizar CPF).
+ * @param {string} value
+ * @returns {string}
+ */
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+/**
  * Verifica se o valor parece um e-mail ou um CPF (11 dígitos, com ou sem
  * pontuação). Validação apenas de formato — a validação real (dígitos
  * verificadores, existência da conta etc.) ficará a cargo do backend/Firebase.
@@ -188,8 +232,7 @@ function isValidIdentifier(value) {
 
   if (isEmail(trimmed)) return true;
 
-  const digitsOnly = trimmed.replace(/\D/g, "");
-  return digitsOnly.length === 11;
+  return onlyDigits(trimmed).length === 11;
 }
 
 // ============================================================
@@ -361,12 +404,11 @@ forgotForm.addEventListener("submit", async (event) => {
 // Firebase Authentication — integração real
 // ------------------------------------------------------------
 // O Firebase Auth usa e-mail + senha como credencial. O usuário do
-// SIGEA pode informar CPF OU e-mail; quando for CPF, o identificador
-// precisa ser resolvido para o e-mail associado antes de chamar o
-// Firebase. Essa resolução depende de uma estrutura de dados (ex.:
-// Firestore) que ainda não existe neste projeto — por isso a função
-// resolveIdentifierToEmail() abaixo está deixada claramente preparada
-// para implementação posterior, sem dados fictícios.
+// SIGEA pode informar CPF OU e-mail; quando for CPF, o identificador é
+// resolvido para o e-mail associado através da Cloud Function callable
+// `resolveCpfToEmail`, que consulta a coleção `users` no Firestore com
+// privilégios de servidor (Admin SDK) — a coleção não é lida diretamente
+// pelo navegador, para não expor dados de usuários publicamente.
 //
 // O UID retornado pelo Firebase (user.uid) é a identidade universal
 // do usuário dentro do ecossistema SIGEA. Este arquivo não trata
@@ -378,13 +420,9 @@ forgotForm.addEventListener("submit", async (event) => {
  * Resolve um identificador informado como e-mail.
  *
  * Se `identifier` já for um e-mail, é retornado como está. Se for um
- * CPF, esta função deveria consultar a estrutura que associa CPF → e-mail
- * (por exemplo, uma coleção no Firestore) e retornar o e-mail vinculado
- * a essa conta.
- *
- * PENDENTE: a estrutura de CPF ainda não existe no projeto (Firestore
- * não foi modelado para isso nesta etapa). Por isso, para CPF, esta
- * função apenas lança um erro claro em vez de simular/inventar dados.
+ * CPF, consulta a Cloud Function `resolveCpfToEmail`, que verifica o
+ * CPF na coleção `users` do Firestore e retorna o e-mail associado
+ * (somente se o usuário existir e estiver com status "ativo").
  *
  * @param {string} identifier - CPF ou e-mail informado pelo usuário.
  * @returns {Promise<string>} O e-mail a ser usado no Firebase Authentication.
@@ -396,14 +434,18 @@ async function resolveIdentifierToEmail(identifier) {
     return trimmed;
   }
 
-  // TODO (futuro): buscar no Firestore (ou endpoint equivalente) o
-  // e-mail associado a este CPF, ex.:
-  //   const snapshot = await getDoc(doc(db, "usuarios_cpf", digitsOnly(trimmed)));
-  //   if (!snapshot.exists()) throw new Error("CPF não encontrado.");
-  //   return snapshot.data().email;
-  throw new Error(
-    "Login por CPF ainda não está disponível. Utilize seu e-mail por enquanto."
-  );
+  const cpfDigits = onlyDigits(trimmed);
+
+  try {
+    const result = await resolveCpfToEmailFn({ cpf: cpfDigits });
+    return result.data.email;
+  } catch (error) {
+    // Erros da Cloud Function (ex.: "not-found") já vêm com mensagem
+    // amigável definida no backend; repassamos como está.
+    throw new Error(
+      (error && error.message) || "CPF ou senha incorretos."
+    );
+  }
 }
 
 /**

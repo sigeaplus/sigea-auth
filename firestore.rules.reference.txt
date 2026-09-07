@@ -1,0 +1,25 @@
+// REFERÊNCIA — não aplique isto automaticamente sem revisar junto das
+// regras atuais do projeto sigea-auth-0. Este arquivo só documenta o
+// requisito de segurança desta etapa: a coleção `users` continua SEM
+// leitura pública, mesmo com o login por CPF funcionando.
+//
+// A Cloud Function `resolveCpfToEmail` usa o Admin SDK, que ignora as
+// regras do Firestore (acesso de servidor). Por isso as regras abaixo
+// podem continuar bloqueando leitura de `users` para qualquer cliente
+// não autenticado, exatamente como já estão hoje.
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      // Nenhuma leitura pública. Nem para o próprio usuário logado,
+      // a menos que isso já seja necessário em outra parte do sistema
+      // — se for, restrinja a "somente o próprio documento":
+      //   allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
